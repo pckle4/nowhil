@@ -1,6 +1,6 @@
 
 import React from 'react';
-import QRCodeReact from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export function QRCode({ value }: QRCodeProps) {
   return (
     <div className="p-6 rounded-xl bg-white shadow-sm border border-neutral-100">
       <div className="bg-white p-4 rounded-lg">
-        <QRCodeReact
+        <QRCodeCanvas
           id="qr-code"
           value={value}
           size={200}
