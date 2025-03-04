@@ -1,39 +1,72 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { QRCode } from '@/components/QRCode';
 import { Button } from '@/components/ui/button';
-import { Download, Clock, ShieldCheck, Share2 } from 'lucide-react';
+import { FileList } from '@/components/FileList';
+import { 
+  Download, 
+  Share2, 
+  ShieldCheck, 
+  FileText,
+  Link as LinkIcon, 
+  QrCode,
+  Copy,
+  Clock,
+  User,
+  Globe,
+  Fingerprint,
+  CheckCircle2
+} from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FileMetadata {
   name: string;
   size: number;
   type: string;
   uploadedAt: string;
-  expiresAt: string;
+  uploadIp?: string;
+  deviceInfo?: string;
+  uniqueId: string;
+  isOwner?: boolean;
 }
 
 const DownloadPage = () => {
   const { fileId } = useParams();
+  const location = useLocation();
   const [fileData, setFileData] = useState<FileMetadata | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"qr" | "link">("link");
+  const [copySuccess, setCopySuccess] = useState(false);
+  
+  // Check if user is owner based on URL parameters
+  const isOwner = new URLSearchParams(location.search).get('owner') === 'true';
 
   // In a real app, this would fetch file data from a backend
   useEffect(() => {
     // Simulate API call
     setTimeout(() => {
+      // Create a mock File object
+      const mockFile = new File([""], "presentation.pdf", { type: "application/pdf" });
+      setFiles([mockFile]);
+      
       // Mock data for demonstration
       setFileData({
         name: "presentation.pdf",
         size: 2457600,
         type: "application/pdf",
         uploadedAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        uploadIp: isOwner ? "192.168.1.1" : undefined,
+        deviceInfo: isOwner ? "Chrome 121.0.6167.189 / Windows 11" : undefined,
+        uniqueId: fileId || Math.random().toString(36).substring(2, 15),
+        isOwner: isOwner
       });
+      
       setLoading(false);
     }, 1000);
-  }, [fileId]);
+  }, [fileId, isOwner]);
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -49,18 +82,8 @@ const DownloadPage = () => {
       day: 'numeric',
       hour: 'numeric',
       minute: 'numeric',
+      second: 'numeric'
     }).format(new Date(dateString));
-  };
-
-  const calculateTimeRemaining = (expiresAt: string) => {
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}h ${minutes}m`;
   };
 
   const downloadFile = () => {
@@ -74,10 +97,27 @@ const DownloadPage = () => {
   const shareLink = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
+    setCopySuccess(true);
+    
     toast({
       title: "Link copied",
       description: "Download link has been copied to clipboard",
     });
+    
+    setTimeout(() => setCopySuccess(false), 2000);
+  };
+
+  const cancelShare = () => {
+    toast({
+      title: "Share cancelled",
+      description: "This download link is now inactive",
+      variant: "destructive"
+    });
+    
+    // In a real app, this would call an API to invalidate the share
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1500);
   };
 
   if (loading) {
@@ -107,34 +147,55 @@ const DownloadPage = () => {
           <div className="bg-white rounded-2xl shadow-xl p-8 order-2 md:order-1">
             <div className="mb-8">
               <h1 className="text-3xl font-display font-bold mb-2 bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
-                Ready to Download
+                {isOwner ? "Your Shared File" : "Ready to Download"}
               </h1>
               <p className="text-neutral-600">
-                This file was shared with you through ShareFlow Connect
+                {isOwner 
+                  ? "This file is now available for others to download" 
+                  : "This file was shared with you through ShareFlow Connect"}
               </p>
             </div>
             
-            <div className="bg-neutral-50 rounded-xl p-6 mb-8 border border-neutral-100">
-              <h2 className="font-bold text-lg mb-4 text-neutral-800">File Details</h2>
-              <div className="space-y-4">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Download className="w-5 h-5 text-primary" />
+            {files.length > 0 && <FileList files={files} onRemove={() => {}} isOwner={isOwner} />}
+            
+            <div className="bg-neutral-50 rounded-xl p-6 my-8 border border-neutral-100">
+              <h2 className="font-bold text-lg mb-4 text-neutral-800">
+                {isOwner ? "Share Information" : "File Details"}
+              </h2>
+              
+              <div className="space-y-5">
+                {isOwner && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white p-3 rounded-lg border border-neutral-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <User className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium text-neutral-700">Upload Source</span>
+                      </div>
+                      <p className="text-sm text-neutral-600 font-mono">
+                        {fileData.uploadIp || "Unknown"}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border border-neutral-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Globe className="w-4 h-4 text-accent" />
+                        <span className="text-sm font-medium text-neutral-700">Device Info</span>
+                      </div>
+                      <p className="text-sm text-neutral-600 font-mono truncate">
+                        {fileData.deviceInfo || "Unknown"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-neutral-800">{fileData.name}</h3>
-                    <p className="text-sm text-neutral-500">{formatSize(fileData.size)}</p>
-                  </div>
-                </div>
+                )}
                 
-                <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white p-3 rounded-lg border border-neutral-100">
                     <div className="flex items-center gap-2 mb-1">
                       <Clock className="w-4 h-4 text-accent" />
-                      <span className="text-sm font-medium text-neutral-700">Expires in</span>
+                      <span className="text-sm font-medium text-neutral-700">Uploaded at</span>
                     </div>
                     <p className="text-sm text-neutral-600 font-mono">
-                      {calculateTimeRemaining(fileData.expiresAt)}
+                      {formatDate(fileData.uploadedAt)}
                     </p>
                   </div>
                   
@@ -148,39 +209,138 @@ const DownloadPage = () => {
                     </p>
                   </div>
                 </div>
+                
+                <div className="bg-white p-3 rounded-lg border border-neutral-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Fingerprint className="w-4 h-4 text-[#8b5cf6]" />
+                    <span className="text-sm font-medium text-neutral-700">File Identifier</span>
+                  </div>
+                  <p className="text-sm text-neutral-600 font-mono break-all">
+                    {fileData.uniqueId}
+                  </p>
+                </div>
               </div>
             </div>
             
-            <Button 
-              onClick={downloadFile}
-              className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-              size="lg"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              Download File
-            </Button>
-            
-            <div className="mt-6 text-center">
-              <button 
-                onClick={shareLink}
-                className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+            {isOwner ? (
+              <div className="space-y-4">
+                <div className="bg-white p-4 rounded-xl border border-neutral-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-neutral-800">Shareable Link</span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={shareLink} 
+                      className="h-8 gap-1 text-xs"
+                    >
+                      {copySuccess ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copySuccess ? "Copied!" : "Copy"}
+                    </Button>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="bg-neutral-50 py-2 px-3 rounded-l-md border border-neutral-200 flex-1 overflow-hidden">
+                      <p className="text-xs font-mono text-neutral-600 truncate">{window.location.href}</p>
+                    </div>
+                    <Button 
+                      size="sm"
+                      className="rounded-l-none h-9"
+                      onClick={shareLink}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="destructive"
+                  className="w-full"
+                  onClick={cancelShare}
+                >
+                  Cancel Sharing
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={downloadFile}
+                className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                size="lg"
               >
-                <Share2 className="w-4 h-4" />
-                Share this download link
-              </button>
-            </div>
+                <Download className="w-5 h-5 mr-2" />
+                Download File
+              </Button>
+            )}
+            
+            {!isOwner && (
+              <div className="mt-6 text-center">
+                <button 
+                  onClick={shareLink}
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share this download link
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="order-1 md:order-2">
             <div className="sticky top-8">
               <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="font-semibold text-lg mb-4 text-neutral-800">Scan to Download</h2>
-                <QRCode value={window.location.href} />
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "qr" | "link")}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="qr" className="flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4" />
+                      QR Code
+                    </TabsTrigger>
+                    <TabsTrigger value="link" className="flex items-center gap-1.5">
+                      <LinkIcon className="w-4 h-4" />
+                      Link
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="qr" className="mt-0">
+                    <QRCode value={window.location.href} />
+                  </TabsContent>
+                  
+                  <TabsContent value="link" className="mt-0">
+                    <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="w-5 h-5 text-primary" />
+                        <h3 className="font-medium text-neutral-800">How to Share</h3>
+                      </div>
+                      <ol className="space-y-2 text-sm text-neutral-600 list-decimal pl-5">
+                        <li>Copy the link below</li>
+                        <li>Send it to the recipient via email, messaging app, etc.</li>
+                        <li>They can download the file directly in their browser</li>
+                      </ol>
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      <div className="bg-primary/5 p-3 rounded-t-md border border-primary/10">
+                        <p className="text-xs font-medium text-primary">Your shareable link:</p>
+                      </div>
+                      <div className="border border-t-0 border-neutral-200 p-3 rounded-b-md bg-white break-all">
+                        <p className="text-xs font-mono text-neutral-600">{window.location.href}</p>
+                      </div>
+                      <Button 
+                        onClick={shareLink} 
+                        size="sm" 
+                        className="mt-2 gap-1.5"
+                      >
+                        {copySuccess ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {copySuccess ? "Copied to clipboard!" : "Copy link"}
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
               
-              <div className="bg-success/10 p-4 rounded-xl">
-                <p className="text-sm text-success/80">
-                  This download link will expire in 24 hours. Make sure to download your file before it expires.
+              <div className="bg-primary/10 p-4 rounded-xl border border-primary/20">
+                <p className="text-sm text-primary/90">
+                  This link will remain available until cancelled or your browser session ends. For security, we recommend cancelling the share after use.
                 </p>
               </div>
             </div>

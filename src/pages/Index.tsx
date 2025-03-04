@@ -42,7 +42,7 @@ const Index = () => {
           const fileId = Math.random().toString(36).substring(2, 10);
           // Navigate to the download page after upload completes
           setTimeout(() => {
-            navigate(`/download/${fileId}`);
+            navigate(`/download/${fileId}?owner=true`);
           }, 500);
           return 100;
         }
@@ -114,7 +114,7 @@ const Index = () => {
 
             {files.length > 0 && (
               <div className="w-full max-w-2xl animate-fade-in">
-                <FileList files={files} onRemove={handleFileRemove} />
+                <FileList files={files} onRemove={handleFileRemove} isOwner={true} />
                 <Button
                   className="mt-4 w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
                   size="lg"
@@ -128,9 +128,9 @@ const Index = () => {
                   <div className="flex items-start gap-3">
                     <Clock className="w-5 h-5 text-primary mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-neutral-800 mb-1">Files available for 24 hours</h3>
+                      <h3 className="font-medium text-neutral-800 mb-1">Files available until you cancel</h3>
                       <p className="text-sm text-neutral-600">
-                        Your shared files will automatically expire after 24 hours for security.
+                        Your shared files will remain available until you explicitly cancel sharing or close your browser.
                       </p>
                     </div>
                   </div>
