@@ -2,15 +2,16 @@
 import React, { useState } from 'react';
 import { DropZone } from '@/components/DropZone';
 import { FileList } from '@/components/FileList';
-import { QRCode } from '@/components/QRCode';
 import { Button } from '@/components/ui/button';
-import { Send, Link, Copy, QrCode } from 'lucide-react';
+import { Send, ArrowRight, Clock, Check } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const [files, setFiles] = useState<File[]>([]);
-  const [shareLink, setShareLink] = useState<string>('');
-  const [showQR, setShowQR] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const navigate = useNavigate();
 
   const handleFileSelect = (selectedFiles: File[]) => {
     setFiles((prev) => [...prev, ...selectedFiles]);
@@ -21,21 +22,33 @@ const Index = () => {
   };
 
   const handleUpload = () => {
-    // This is where we'll implement the actual file transfer logic
-    const dummyLink = `https://shareflow.app/${Math.random().toString(36).substring(2, 10)}`;
-    setShareLink(dummyLink);
-    toast({
-      title: "Link generated",
-      description: "Your shareable link is ready!",
-    });
-  };
+    if (files.length === 0) {
+      toast({
+        title: "No files selected",
+        description: "Please select at least one file to share",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(shareLink);
-    toast({
-      title: "Link copied",
-      description: "The shareable link has been copied to your clipboard",
-    });
+    setIsUploading(true);
+    
+    // Simulate upload progress
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          // Generate a unique file ID (in a real app, this would come from the server)
+          const fileId = Math.random().toString(36).substring(2, 10);
+          // Navigate to the download page after upload completes
+          setTimeout(() => {
+            navigate(`/download/${fileId}`);
+          }, 500);
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 150);
   };
 
   return (
@@ -50,83 +63,81 @@ const Index = () => {
           </p>
         </div>
 
-        <DropZone onFileSelect={handleFileSelect} />
-
-        {files.length > 0 && (
+        {isUploading ? (
           <div className="w-full max-w-2xl animate-fade-in">
-            <FileList files={files} onRemove={handleFileRemove} />
-            <Button
-              className="mt-4 w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
-              size="lg"
-              onClick={handleUpload}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Generate Shareable Link
-            </Button>
-          </div>
-        )}
-
-        {shareLink && (
-          <div className="w-full max-w-2xl space-y-4 animate-fade-in">
-            {!showQR ? (
-              <div className="p-6 rounded-xl bg-white shadow-sm border border-neutral-100">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-display font-semibold text-lg text-neutral-800">Shareable Link</h3>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-accent"
-                      onClick={() => setShowQR(true)}
-                    >
-                      <QrCode className="w-4 h-4 mr-2" />
-                      Show QR
-                    </Button>
+            <div className="bg-white p-8 rounded-2xl shadow-lg">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-display font-semibold mb-2">Uploading Files</h2>
+                <p className="text-neutral-500">Please wait while we process your files...</p>
+              </div>
+              
+              <div className="mb-8">
+                <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-2 text-sm text-neutral-500">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 text-neutral-600">
+                  <div className={`rounded-full p-1 ${uploadProgress >= 30 ? 'bg-success/10 text-success' : 'bg-neutral-100 text-neutral-400'}`}>
+                    <Check className="w-4 h-4" />
                   </div>
-                  
-                  <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-100">
-                    <div className="flex items-center gap-2">
-                      <Link className="w-5 h-5 text-primary flex-shrink-0" />
-                      <p className="text-sm font-mono text-neutral-700 truncate flex-1">
-                        {shareLink}
+                  <span>Processing files</span>
+                </div>
+                
+                <div className="flex items-center gap-4 text-neutral-600">
+                  <div className={`rounded-full p-1 ${uploadProgress >= 60 ? 'bg-success/10 text-success' : 'bg-neutral-100 text-neutral-400'}`}>
+                    <Check className="w-4 h-4" />
+                  </div>
+                  <span>Encrypting data</span>
+                </div>
+                
+                <div className="flex items-center gap-4 text-neutral-600">
+                  <div className={`rounded-full p-1 ${uploadProgress >= 90 ? 'bg-success/10 text-success' : 'bg-neutral-100 text-neutral-400'}`}>
+                    <Check className="w-4 h-4" />
+                  </div>
+                  <span>Generating secure link</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <DropZone onFileSelect={handleFileSelect} />
+
+            {files.length > 0 && (
+              <div className="w-full max-w-2xl animate-fade-in">
+                <FileList files={files} onRemove={handleFileRemove} />
+                <Button
+                  className="mt-4 w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
+                  size="lg"
+                  onClick={handleUpload}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Generate Shareable Link
+                </Button>
+                
+                <div className="mt-6 p-4 rounded-lg bg-primary/5 border border-primary/10">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-medium text-neutral-800 mb-1">Files available for 24 hours</h3>
+                      <p className="text-sm text-neutral-600">
+                        Your shared files will automatically expire after 24 hours for security.
                       </p>
-                      <Button
-                        onClick={copyLink}
-                        size="sm"
-                        variant="outline"
-                        className="h-8"
-                      >
-                        <Copy className="w-4 h-4 mr-1" />
-                        Copy
-                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="bg-success/10 p-3 rounded-lg">
-                    <p className="text-sm text-success/80">
-                      Link will expire in 24 hours. Anyone with this link can access these files.
-                    </p>
-                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-display font-semibold text-lg text-neutral-800">QR Code</h3>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-primary"
-                    onClick={() => setShowQR(false)}
-                  >
-                    <Link className="w-4 h-4 mr-2" />
-                    Show Link
-                  </Button>
-                </div>
-                <QRCode value={shareLink} />
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
